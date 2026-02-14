@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inspección 1131 - Registro Documental</title>
+
+    <!-- PWA Configuration -->
+    <meta name="theme-color" content="#004582">
+    <meta name="description" content="Sistema de registro documental con Firebase">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Insp. 1131">
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23004582'/><text x='50' y='65' font-family='Arial' font-size='40' fill='white' text-anchor='middle'>C</text></svg>">
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <!-- Librerías PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Estilos separados -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-screen" class="screen active">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-img">C</div>
+                <div class="institucional">
+                    <h1>Inspección 1131</h1>
+                    <h2>Registro Documental</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-tabs">
+                    <button class="login-tab active" id="tab-login">Ingresar</button>
+                    <button class="login-tab" id="tab-register">Registrarse</button>
+                </div>
+
+                <!-- Formulario de Login -->
+                <form id="login-form" class="form-grid">
+                    <div>
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="correo@ejemplo.com" required>
+                    </div>
+                    <div>
+                        <label for="login-password">Contraseña</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                </form>
+
+                <!-- Formulario de Registro -->
+                <form id="register-form" class="form-grid hidden">
+                    <div>
+                        <label for="reg-name">Nombre completo</label>
+                        <input type="text" id="reg-name" placeholder="Nombre y apellido" required>
+                    </div>
+                    <div>
+                        <label for="reg-email">Email</label>
+                        <input type="email" id="reg-email" placeholder="correo@ejemplo.com" required>
+                    </div>
+                    <div>
+                        <label for="reg-password">Contraseña</label>
+                        <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Crear cuenta</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA PRINCIPAL -->
+    <div id="main-screen" class="screen">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-img">C</div>
+                <div class="institucional">
+                    <h1>Inspección 1131</h1>
+                    <h2 id="user-name-header">Cargando...</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="search-bar">
+            <div class="search-input-container">
+                <input type="text" class="search-input" id="search-input" placeholder="Buscar por número, personal...">
+                <span class="search-icon">🔍</span>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-container">
+            <div class="filter-chips">
+                <button class="filter-chip active" data-filter="all">Todos</button>
+                <button class="filter-chip" data-filter="nota">Nota</button>
+                <button class="filter-chip" data-filter="informe">Informe</button>
+                <button class="filter-chip" data-filter="expediente">Expediente</button>
+                <button class="filter-chip" data-filter="acta">Acta</button>
+                <button class="filter-chip" data-filter="circular">Circular</button>
+                <button class="filter-chip" data-filter="cap">CAP</button>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="registros-list" id="registros-list">
+                <!-- Registros dinámicos -->
+            </div>
+        </div>
+
+        <!-- FAB -->
+        <button class="fab" id="fab-add">+</button>
+
+        <!-- Navegación inferior -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" id="nav-home">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Inicio</div>
+            </button>
+            <button class="nav-item" id="nav-stats">
+                <div class="nav-icon">📊</div>
+                <div class="nav-label">Estadísticas</div>
+            </button>
+            <button class="nav-item" id="nav-export">
+                <div class="nav-icon">📥</div>
+                <div class="nav-label">Exportar</div>
+            </button>
+            <button class="nav-item" id="nav-profile">
+                <div class="nav-icon">👤</div>
+                <div class="nav-label">Perfil</div>
+            </button>
+        </nav>
+    </div>
+
+    <!-- MODAL NUEVO REGISTRO -->
+    <div id="new-registro-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Nuevo Registro</h3>
+                <button class="modal-close" onclick="closeNewRegistroModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="new-registro-form" class="form-grid">
+                    <div>
+                        <label for="new-docType">Tipo *</label>
+                        <select id="new-docType" required>
+                            <option value="">Seleccione...</option>
+                            <option value="nota">Nota</option>
+                            <option value="informe">Informe</option>
+                            <option value="expediente">Expediente</option>
+                            <option value="acta">Acta</option>
+                            <option value="circular">Circular</option>
+                            <option value="cap">CAP</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="new-deliveryPerson">Personal *</label>
+                        <input type="text" id="new-deliveryPerson" required>
+                    </div>
+                    <div>
+                        <label for="new-originArea">Área de origen</label>
+                        <input type="text" id="new-originArea">
+                    </div>
+                    <div>
+                        <label for="new-userId">ID Usuario/Alumno</label>
+                        <input type="text" id="new-userId">
+                    </div>
+                    <div>
+                        <label for="new-observations">Observaciones</label>
+                        <textarea id="new-observations"></textarea>
+                    </div>
+
+                    <!-- Adjuntos -->
+                    <div>
+                        <label>Documentación adjunta</label>
+                        <div class="file-input-wrapper">
+                            <div class="file-actions">
+                                <button type="button" class="file-action-btn" id="btn-select-files">📎 Adjuntar archivos</button>
+                                <button type="button" class="file-action-btn" id="btn-take-photo">📸 Foto</button>
+                            </div>
+                            <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" style="display:none">
+                            <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
+                            <div id="file-list-container" class="file-list" style="display:none"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeNewRegistroModal()">Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDICIÓN -->
+    <div id="edit-registro-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Editar Registro</h3>
+                <button class="modal-close" onclick="closeEditRegistroModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-registro-form" class="form-grid">
+                    <input type="hidden" id="edit-registro-id">
+                    <div>
+                        <label for="edit-docType">Tipo *</label>
+                        <select id="edit-docType" required>
+                            <option value="">Seleccione...</option>
+                            <option value="nota">Nota</option>
+                            <option value="informe">Informe</option>
+                            <option value="expediente">Expediente</option>
+                            <option value="acta">Acta</option>
+                            <option value="circular">Circular</option>
+                            <option value="cap">CAP</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="edit-deliveryPerson">Personal *</label>
+                        <input type="text" id="edit-deliveryPerson" required>
+                    </div>
+                    <div>
+                        <label for="edit-originArea">Área de origen</label>
+                        <input type="text" id="edit-originArea">
+                    </div>
+                    <div>
+                        <label for="edit-userId">ID Usuario/Alumno</label>
+                        <input type="text" id="edit-userId">
+                    </div>
+                    <div>
+                        <label for="edit-observations">Observaciones</label>
+                        <textarea id="edit-observations"></textarea>
+                    </div>
+
+                    <!-- Adjuntos edición -->
+                    <div>
+                        <label>Documentación adjunta</label>
+                        <div class="file-input-wrapper">
+                            <div class="file-actions">
+                                <button type="button" class="file-action-btn" id="edit-btn-select-files">📎 Adjuntar archivos</button>
+                                <button type="button" class="file-action-btn" id="edit-btn-take-photo">📸 Foto</button>
+                            </div>
+                            <input type="file" id="edit-file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" style="display:none">
+                            <input type="file" id="edit-camera-input" accept="image/*" capture="environment" style="display:none">
+                            <div id="edit-file-list-container" class="file-list" style="display:none"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning">Actualizar Registro</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditRegistroModal()">Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLES -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Detalles del Registro</h3>
+                <button class="modal-close" onclick="closeDetailModal()">×</button>
+            </div>
+            <div class="modal-body" id="detail-content"></div>
+        </div>
+    </div>
+
+    <!-- PANTALLA PERFIL -->
+    <div id="profile-screen" class="screen">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-img">C</div>
+                <div class="institucional">
+                    <h1>Mi Perfil</h1>
+                    <h2 id="profile-username">Usuario</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div style="padding:20px;max-width:600px;margin:0 auto">
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
+                    <div class="stat-card"><div class="stat-value" id="stat-month">0</div><div class="stat-label">Este mes</div></div>
+                    <div class="stat-card"><div class="stat-value" id="stat-week">0</div><div class="stat-label">Esta semana</div></div>
+                    <div class="stat-card"><div class="stat-value" id="stat-cap">0</div><div class="stat-label">CAPs</div></div>
+                </div>
+
+                <div class="login-card mt-3">
+                    <h3 class="mb-2">Información de cuenta</h3>
+                    <div class="info-item mb-2"><div class="info-label">Nombre</div><div class="info-value" id="profile-name">-</div></div>
+                    <div class="info-item mb-2"><div class="info-label">Email</div><div class="info-value" id="profile-email">-</div></div>
+                    <div class="info-item mb-2"><div class="info-label">Rol</div><div class="info-value" id="profile-role">-</div></div>
+                    <button class="btn btn-danger" onclick="logout()">Cerrar Sesión</button>
+                    <button class="btn btn-secondary mt-2" onclick="exportToPDF()">📄 Exportar a PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-item" onclick="showScreen('main')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></button>
+            <button class="nav-item" onclick="showStats()"><div class="nav-icon">📊</div><div class="nav-label">Estadísticas</div></button>
+            <button class="nav-item" onclick="exportToCSV()"><div class="nav-icon">📥</div><div class="nav-label">Exportar</div></button>
+            <button class="nav-item active"><div class="nav-icon">👤</div><div class="nav-label">Perfil</div></button>
+        </nav>
+    </div>
+
+    <!-- Mensajes -->
+    <div id="message-success" class="message message-success"></div>
+    <div id="message-error" class="message message-error"></div>
+    <div id="message-warning" class="message message-warning"></div>
+
+    <!-- Loading -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loading-text">Cargando...</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
